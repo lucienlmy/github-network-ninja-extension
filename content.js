@@ -13,26 +13,6 @@
     return m ? m[1] + "/" + m[2] : null;
   }
 
-  function waitFor(selector, timeout) {
-    timeout = timeout || 15000;
-    return new Promise(function (resolve, reject) {
-      const el = $(selector);
-      if (el) return resolve(el);
-      const obs = new MutationObserver(function () {
-        const el2 = $(selector);
-        if (el2) {
-          obs.disconnect();
-          resolve(el2);
-        }
-      });
-      obs.observe(document.documentElement, { childList: true, subtree: true });
-      setTimeout(function () {
-        obs.disconnect();
-        reject(new Error("timeout waiting for " + selector));
-      }, timeout);
-    });
-  }
-
   // Bridge to page.js (MAIN world)
   let msgId = 0;
   const pending = new Map();
@@ -71,27 +51,30 @@
     return pageRequest("ghn-get-nethash", {});
   }
 
-  // ---------- focus mode (hide chrome only) ----------
+  // ---------- windowed maximize ----------
   let isFullscreen = false;
 
-  function getGraphEl() {
-    return (
-      $("network-graph") ||
-      $(".js-network-graph-container") ||
-      $(".network-graph-container")
-    );
+  function afterLayout() {
+    requestAnimationFrame(function () {
+      window.dispatchEvent(new Event("resize"));
+      setTimeout(function () {
+        window.dispatchEvent(new Event("resize"));
+      }, 100);
+    });
   }
 
   function enterFullscreen() {
     document.body.classList.add("ghn-fullscreen");
     isFullscreen = true;
     updateButtons();
+    afterLayout();
   }
 
   function exitFullscreen() {
     document.body.classList.remove("ghn-fullscreen");
     isFullscreen = false;
     updateButtons();
+    afterLayout();
   }
 
   function toggleFullscreen() {
@@ -100,16 +83,14 @@
   }
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && isFullscreen) {
-      exitFullscreen();
-    }
+    if (e.key === "Escape" && isFullscreen) exitFullscreen();
   });
 
   let btnFullscreen;
 
   function updateButtons() {
     if (btnFullscreen) {
-      btnFullscreen.textContent = isFullscreen ? "退出专注" : "专注模式";
+      btnFullscreen.textContent = isFullscreen ? "退出最大化" : "最大化网络图";
       btnFullscreen.classList.toggle("ghn-btn-primary", !isFullscreen);
     }
   }
@@ -123,7 +104,7 @@
     btnFullscreen = document.createElement("button");
     btnFullscreen.type = "button";
     btnFullscreen.className = "ghn-btn ghn-btn-primary";
-    btnFullscreen.textContent = "专注模式";
+    btnFullscreen.textContent = "最大化网络图";
     btnFullscreen.addEventListener("click", toggleFullscreen);
 
     const btnCommits = document.createElement("button");
@@ -173,9 +154,7 @@
       }
     }
 
-    if (!placed) {
-      document.body.appendChild(toolbar);
-    }
+    if (!placed) document.body.appendChild(toolbar);
 
     if (!$(".ghn-exit-bar")) {
       const exitBar = document.createElement("div");
@@ -183,7 +162,7 @@
       const exitBtn = document.createElement("button");
       exitBtn.type = "button";
       exitBtn.className = "ghn-btn ghn-btn-primary";
-      exitBtn.textContent = "退出专注";
+      exitBtn.textContent = "退出最大化";
       exitBtn.addEventListener("click", exitFullscreen);
       const listBtn2 = document.createElement("button");
       listBtn2.type = "button";
@@ -294,9 +273,7 @@
 
       const nethash = await waitForNethash(20000);
       if (!nethash) {
-        showError(
-          "未能获取 nethash。请等网络图加载完成后再打开提交列表。"
-        );
+        showError("未能获取 nethash。请等网络图加载完成后再打开提交列表。");
         return;
       }
 
@@ -455,9 +432,7 @@
     if (!networkMetaData || !networkMetaData.users) return user + "/_unknown_";
     for (let i = 0; i < networkMetaData.users.length; i++) {
       if (networkMetaData.users[i].name === user) {
-        return (
-          networkMetaData.users[i].name + "/" + networkMetaData.users[i].repo
-        );
+        return networkMetaData.users[i].name + "/" + networkMetaData.users[i].repo;
       }
     }
     return user + "/_unknown_";
@@ -482,7 +457,13 @@
       $$("h1, h2").forEach(function (el) {
         if (/网络图|network\s*graph/i.test(el.textContent || "")) title = el;
       });
-      if (tb && title && title.parentElement && !title.parentElement.contains(tb) && !title.closest(".ghn-title-row")) {
+      if (
+        tb &&
+        title &&
+        title.parentElement &&
+        !title.parentElement.contains(tb) &&
+        !title.closest(".ghn-title-row")
+      ) {
         tb.remove();
         var bar = $(".ghn-exit-bar");
         if (bar) bar.remove();
