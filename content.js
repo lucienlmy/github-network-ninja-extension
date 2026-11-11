@@ -86,18 +86,12 @@
     document.body.classList.add("ghn-fullscreen");
     isFullscreen = true;
     updateButtons();
-    requestAnimationFrame(function () {
-      window.dispatchEvent(new Event("resize"));
-    });
   }
 
   function exitFullscreen() {
     document.body.classList.remove("ghn-fullscreen");
     isFullscreen = false;
     updateButtons();
-    requestAnimationFrame(function () {
-      window.dispatchEvent(new Event("resize"));
-    });
   }
 
   function toggleFullscreen() {
