@@ -1,4 +1,4 @@
-/* Toolbar buttons near the Network graph title */
+/* Toolbar */
 .ghn-toolbar {
   display: inline-flex;
   gap: 8px;
@@ -41,7 +41,7 @@
   border-color: #0860ca;
 }
 
-/* Windowed maximize: enlarge original Network panel */
+/* Windowed maximize */
 body.ghn-fullscreen {
   overflow: hidden !important;
 }
@@ -113,7 +113,6 @@ body.ghn-fullscreen .ghn-exit-bar {
   display: flex;
 }
 
-/* Commit filter modal */
 .ghn-mask {
   position: fixed;
   inset: 0;
@@ -153,68 +152,88 @@ body.ghn-fullscreen .ghn-exit-bar {
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
 }
 
-.ghn-table-wrap {
-  flex: 1;
-  overflow: auto;
-}
+.ghn-table-wrap { flex: 1; overflow: auto; }
+.ghn-modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ghn-modal tr { border-bottom: 1px solid #d0d7de; }
+.ghn-modal tr:hover { background: #ddf4ff; }
+.ghn-modal td { padding: 6px 8px; vertical-align: top; }
+.ghn-modal .author { white-space: nowrap; color: #656d76; width: 120px; }
+.ghn-modal .message { word-break: break-word; }
+.ghn-modal .message a { color: #0969da; text-decoration: none; }
+.ghn-modal .message a:hover { text-decoration: underline; }
+.ghn-modal tr.non-merged .message { font-weight: 600; }
+.ghn-modal .date { white-space: nowrap; color: #656d76; width: 160px; text-align: right; }
+.ghn-loading { text-align: center; color: #656d76; padding: 40px 20px; }
+.ghn-loading .num { font-size: 28px; font-weight: 600; color: #24292f; }
 
-.ghn-modal table {
-  width: 100%;
-  border-collapse: collapse;
+/* Enhanced custom graph overlay */
+.ghn-graph-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  color: #24292f;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+.ghn-graph-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #d0d7de;
+  background: #f6f8fa;
+  flex-shrink: 0;
+}
+.ghn-graph-title { font-weight: 600; font-size: 14px; }
+.ghn-graph-status { font-weight: 400; color: #656d76; margin-left: 8px; font-size: 12px; }
+.ghn-graph-actions { display: flex; align-items: center; gap: 8px; }
+.ghn-graph-search {
+  width: 220px;
+  padding: 4px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
   font-size: 13px;
 }
-
-.ghn-modal tr {
-  border-bottom: 1px solid #d0d7de;
+.ghn-graph-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
 }
-
-.ghn-modal tr:hover {
-  background: #ddf4ff;
+.ghn-graph-body canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
 }
-
-.ghn-modal td {
-  padding: 6px 8px;
-  vertical-align: top;
+.ghn-graph-body canvas:active { cursor: grabbing; }
+.ghn-graph-tip {
+  position: fixed;
+  z-index: 100001;
+  max-width: 360px;
+  padding: 10px 12px;
+  background: #24292f;
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.45;
 }
-
-.ghn-modal .author {
-  white-space: nowrap;
+.ghn-tip-msg { font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+.ghn-tip-meta { color: #c9d1d9; margin-bottom: 2px; }
+.ghn-tip-hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #8b949e;
+}
+.ghn-graph-help {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 11px;
   color: #656d76;
-  width: 120px;
-}
-
-.ghn-modal .message {
-  word-break: break-word;
-}
-
-.ghn-modal .message a {
-  color: #0969da;
-  text-decoration: none;
-}
-
-.ghn-modal .message a:hover {
-  text-decoration: underline;
-}
-
-.ghn-modal tr.non-merged .message {
-  font-weight: 600;
-}
-
-.ghn-modal .date {
-  white-space: nowrap;
-  color: #656d76;
-  width: 160px;
-  text-align: right;
-}
-
-.ghn-loading {
-  text-align: center;
-  color: #656d76;
-  padding: 40px 20px;
-}
-
-.ghn-loading .num {
-  font-size: 28px;
-  font-weight: 600;
-  color: #24292f;
+  border-top: 1px solid #d0d7de;
+  background: #f6f8fa;
 }

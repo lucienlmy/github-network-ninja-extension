@@ -13,7 +13,6 @@
     return m ? m[1] + "/" + m[2] : null;
   }
 
-  // Bridge to page.js (MAIN world)
   let msgId = 0;
   const pending = new Map();
 
@@ -30,7 +29,7 @@
   });
 
   function pageRequest(type, payload, timeoutMs) {
-    timeoutMs = timeoutMs || 15000;
+    timeoutMs = timeoutMs || 20000;
     const id = ++msgId;
     return new Promise(function (resolve, reject) {
       pending.set(id, { resolve: resolve, reject: reject });
@@ -51,7 +50,6 @@
     return pageRequest("ghn-get-nethash", {});
   }
 
-  // ---------- windowed maximize ----------
   let isFullscreen = false;
 
   function afterLayout() {
@@ -95,6 +93,19 @@
     }
   }
 
+  function openEnhancedGraph() {
+    if (!window.__ghnEnhancedGraph) {
+      alert("增强网络图模块未加载，请重新加载扩展");
+      return;
+    }
+    var repo = getRepo();
+    if (!repo) return;
+    window.__ghnEnhancedGraph.open({
+      repo: repo,
+      pageRequest: pageRequest,
+    });
+  }
+
   function createToolbar() {
     if ($(".ghn-toolbar")) return;
 
@@ -107,6 +118,13 @@
     btnFullscreen.textContent = "最大化网络图";
     btnFullscreen.addEventListener("click", toggleFullscreen);
 
+    const btnGraph = document.createElement("button");
+    btnGraph.type = "button";
+    btnGraph.className = "ghn-btn";
+    btnGraph.textContent = "增强网络图";
+    btnGraph.title = "自绘网格，支持悬停详情 / 拖拽 / 缩放";
+    btnGraph.addEventListener("click", openEnhancedGraph);
+
     const btnCommits = document.createElement("button");
     btnCommits.type = "button";
     btnCommits.className = "ghn-btn";
@@ -114,6 +132,7 @@
     btnCommits.addEventListener("click", showCommitModal);
 
     toolbar.appendChild(btnFullscreen);
+    toolbar.appendChild(btnGraph);
     toolbar.appendChild(btnCommits);
 
     let placed = false;
@@ -164,18 +183,23 @@
       exitBtn.className = "ghn-btn ghn-btn-primary";
       exitBtn.textContent = "退出最大化";
       exitBtn.addEventListener("click", exitFullscreen);
+      const graphBtn2 = document.createElement("button");
+      graphBtn2.type = "button";
+      graphBtn2.className = "ghn-btn";
+      graphBtn2.textContent = "增强网络图";
+      graphBtn2.addEventListener("click", openEnhancedGraph);
       const listBtn2 = document.createElement("button");
       listBtn2.type = "button";
       listBtn2.className = "ghn-btn";
       listBtn2.textContent = "提交列表";
       listBtn2.addEventListener("click", showCommitModal);
       exitBar.appendChild(exitBtn);
+      exitBar.appendChild(graphBtn2);
       exitBar.appendChild(listBtn2);
       document.body.appendChild(exitBar);
     }
   }
 
-  // ---------- commit list ----------
   const config = {
     number_of_commits_per_request: 500,
     api_request_interval: 1000,
@@ -271,9 +295,10 @@
         url: "https://github.com/" + repo + "/network/meta",
       });
 
-      const nethash = await waitForNethash(20000);
+      var nethash = networkMetaData && networkMetaData.nethash;
+      if (!nethash) nethash = await waitForNethash(15000);
       if (!nethash) {
-        showError("未能获取 nethash。请等网络图加载完成后再打开提交列表。");
+        showError("未能获取 nethash。请刷新页面后重试。");
         return;
       }
 
