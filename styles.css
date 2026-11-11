@@ -41,77 +41,69 @@
   border-color: #0860ca;
 }
 
-/* Fullscreen mode (CSS fallback when native API unavailable) */
+/* ========== Windowed maximize: enlarge original Network panel ========== */
 body.ghn-fullscreen {
   overflow: hidden !important;
 }
 
+/* Hide page chrome only */
 body.ghn-fullscreen .AppHeader,
 body.ghn-fullscreen header[role="banner"],
 body.ghn-fullscreen .js-header-wrapper,
+body.ghn-fullscreen .AppHeader-globalBar,
+body.ghn-fullscreen .AppHeader-localBar,
 body.ghn-fullscreen nav[aria-label="Repository"],
+body.ghn-fullscreen nav[aria-label="Repository file navigation"],
 body.ghn-fullscreen .Layout-sidebar,
 body.ghn-fullscreen [data-testid="repos-file-tree-container"],
 body.ghn-fullscreen .flash-full,
-body.ghn-fullscreen .gh-header-actions {
+body.ghn-fullscreen .gh-header-actions,
+body.ghn-fullscreen footer.footer,
+body.ghn-fullscreen .footer {
   display: none !important;
 }
 
-body.ghn-fullscreen .js-network-graph-container,
-body.ghn-fullscreen .network-graph-container,
-body.ghn-fullscreen network-graph {
+body.ghn-fullscreen .ghn-title-row,
+body.ghn-fullscreen .ghn-toolbar {
+  display: none !important;
+}
+
+/* Lift the whole original network panel into a full-window layer */
+body.ghn-fullscreen #network,
+body.ghn-fullscreen .network {
   position: fixed !important;
   left: 0 !important;
   right: 0 !important;
   top: 0 !important;
   bottom: 0 !important;
-  z-index: 9999 !important;
-  background: #fff !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  max-width: none !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  overflow: hidden !important;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-
-body.ghn-fullscreen .js-network-graph-container canvas,
-body.ghn-fullscreen network-graph canvas {
-  display: block !important;
-}
-
-body.ghn-fullscreen .Popover,
-body.ghn-fullscreen .js-hovercard-content {
-  z-index: 10050 !important;
-}
-
-/* Native Fullscreen API on the graph element */
-network-graph:fullscreen,
-network-graph:-webkit-full-screen,
-.js-network-graph-container:fullscreen,
-.js-network-graph-container:-webkit-full-screen {
+  z-index: 9990 !important;
   width: 100vw !important;
   height: 100vh !important;
   max-width: none !important;
-  background: #fff !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
   margin: 0 !important;
-  overflow: hidden !important;
+  padding: 12px 16px 48px !important;
+  background: var(--bgColor-default, #ffffff) !important;
+  overflow: auto !important;
+  box-sizing: border-box !important;
 }
 
-network-graph:fullscreen canvas,
-network-graph:-webkit-full-screen canvas,
-.js-network-graph-container:fullscreen canvas,
-.js-network-graph-container:-webkit-full-screen canvas {
+/* Let the graph component grow with the panel — do not hard-set canvas size */
+body.ghn-fullscreen network-graph,
+body.ghn-fullscreen .js-network-graph-container,
+body.ghn-fullscreen .network-graph-container {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: calc(100vh - 80px) !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.ghn-fullscreen network-graph canvas,
+body.ghn-fullscreen .js-network-graph-container canvas {
   display: block !important;
 }
 
-/* Floating exit button when fullscreen */
+/* Exit bar */
 .ghn-exit-bar {
   position: fixed;
   top: 12px;
@@ -121,17 +113,8 @@ network-graph:-webkit-full-screen canvas,
   gap: 8px;
 }
 
-body.ghn-fullscreen .ghn-exit-bar,
-network-graph:fullscreen .ghn-exit-bar,
-network-graph:-webkit-full-screen .ghn-exit-bar,
-.js-network-graph-container:fullscreen .ghn-exit-bar,
-.js-network-graph-container:-webkit-full-screen .ghn-exit-bar {
+body.ghn-fullscreen .ghn-exit-bar {
   display: flex;
-}
-
-body.ghn-fullscreen .ghn-toolbar,
-body.ghn-fullscreen .ghn-title-row {
-  display: none !important;
 }
 
 /* Commit filter modal */
@@ -223,9 +206,9 @@ body.ghn-fullscreen .ghn-title-row {
 
 .ghn-modal .date {
   white-space: nowrap;
-  text-align: right;
   color: #656d76;
   width: 160px;
+  text-align: right;
 }
 
 .ghn-loading {

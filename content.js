@@ -71,8 +71,18 @@
     return pageRequest("ghn-get-nethash", {});
   }
 
-  // ---------- fullscreen ----------
+  // ---------- maximize (windowed, not browser fullscreen) ----------
   let isFullscreen = false;
+
+  function getNetworkPanel() {
+    // Prefer the whole Network graph panel (owners + canvas), not only canvas
+    return (
+      $("#network") ||
+      $(".network") ||
+      $("network-graph") ||
+      $(".js-network-graph-container")
+    );
+  }
 
   function getGraphEl() {
     return (
@@ -82,75 +92,28 @@
     );
   }
 
-  function nudgeGraphResize() {
-    // Nudge the network-graph element so ResizeObserver / layout hooks fire.
-    // Never write canvas.width/height ourselves — that clears the buffer and
-    // desyncs hover hit-testing inside GitHub's component.
-    const container = getGraphEl();
-    if (!container) {
-      window.dispatchEvent(new Event("resize"));
-      return;
-    }
-    const prev = container.style.minHeight;
-    container.style.minHeight =
-      (container.clientHeight || window.innerHeight) + "px";
-    window.dispatchEvent(new Event("resize"));
+  function afterLayout() {
+    // Only notify layout; never touch canvas buffer size
     requestAnimationFrame(function () {
-      container.style.minHeight = prev || "";
       window.dispatchEvent(new Event("resize"));
+      setTimeout(function () {
+        window.dispatchEvent(new Event("resize"));
+      }, 100);
     });
   }
 
   function enterFullscreen() {
-    const container = getGraphEl();
-    if (!container) return;
-
-    const req =
-      container.requestFullscreen ||
-      container.webkitRequestFullscreen ||
-      container.msRequestFullscreen;
-
     document.body.classList.add("ghn-fullscreen");
     isFullscreen = true;
     updateButtons();
-
-    if (req) {
-      Promise.resolve(req.call(container))
-        .then(function () {
-          setTimeout(nudgeGraphResize, 30);
-          setTimeout(nudgeGraphResize, 150);
-        })
-        .catch(function () {
-          // CSS-only fallback (body.ghn-fullscreen styles)
-          setTimeout(nudgeGraphResize, 30);
-          setTimeout(nudgeGraphResize, 150);
-        });
-    } else {
-      setTimeout(nudgeGraphResize, 30);
-      setTimeout(nudgeGraphResize, 150);
-    }
+    afterLayout();
   }
 
   function exitFullscreen() {
-    const exitFs =
-      document.exitFullscreen ||
-      document.webkitExitFullscreen ||
-      document.msExitFullscreen;
-    if (
-      exitFs &&
-      (document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.msFullscreenElement)
-    ) {
-      try {
-        exitFs.call(document);
-      } catch (e) {}
-    }
     document.body.classList.remove("ghn-fullscreen");
     isFullscreen = false;
     updateButtons();
-    setTimeout(nudgeGraphResize, 30);
-    setTimeout(nudgeGraphResize, 150);
+    afterLayout();
   }
 
   function toggleFullscreen() {
@@ -158,30 +121,17 @@
     else enterFullscreen();
   }
 
-  document.addEventListener("fullscreenchange", function () {
-    const fs = !!document.fullscreenElement;
-    if (!fs && isFullscreen) {
-      document.body.classList.remove("ghn-fullscreen");
-      isFullscreen = false;
-      updateButtons();
-      setTimeout(nudgeGraphResize, 50);
-    } else if (fs && !isFullscreen) {
-      document.body.classList.add("ghn-fullscreen");
-      isFullscreen = true;
-      updateButtons();
-      setTimeout(nudgeGraphResize, 50);
-    }
-  });
-
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && isFullscreen) exitFullscreen();
+    if (e.key === "Escape" && isFullscreen) {
+      exitFullscreen();
+    }
   });
 
   let btnFullscreen;
 
   function updateButtons() {
     if (btnFullscreen) {
-      btnFullscreen.textContent = isFullscreen ? "退出全屏" : "全屏网络图";
+      btnFullscreen.textContent = isFullscreen ? "退出最大化" : "最大化网络图";
       btnFullscreen.classList.toggle("ghn-btn-primary", !isFullscreen);
     }
   }
@@ -195,7 +145,7 @@
     btnFullscreen = document.createElement("button");
     btnFullscreen.type = "button";
     btnFullscreen.className = "ghn-btn ghn-btn-primary";
-    btnFullscreen.textContent = "全屏网络图";
+    btnFullscreen.textContent = "最大化网络图";
     btnFullscreen.addEventListener("click", toggleFullscreen);
 
     const btnCommits = document.createElement("button");
@@ -209,7 +159,7 @@
 
     // Place next to page title: "Network graph" / "网络图"
     let placed = false;
- const candidates = $$("h1, h2, .h1, .h2");
+    const candidates = $$("h1, h2, .h1, .h2");
     for (let i = 0; i < candidates.length; i++) {
       const el = candidates[i];
       const t = (el.textContent || "").trim();
@@ -250,14 +200,13 @@
       document.body.appendChild(toolbar);
     }
 
-    // Exit bar: prefer inside graph element so it stays visible in native fullscreen
     if (!$(".ghn-exit-bar")) {
       const exitBar = document.createElement("div");
       exitBar.className = "ghn-exit-bar";
       const exitBtn = document.createElement("button");
       exitBtn.type = "button";
       exitBtn.className = "ghn-btn ghn-btn-primary";
-      exitBtn.textContent = "退出全屏";
+      exitBtn.textContent = "退出最大化";
       exitBtn.addEventListener("click", exitFullscreen);
       const listBtn2 = document.createElement("button");
       listBtn2.type = "button";
@@ -266,15 +215,7 @@
       listBtn2.addEventListener("click", showCommitModal);
       exitBar.appendChild(exitBtn);
       exitBar.appendChild(listBtn2);
-      const graph = getGraphEl();
-      if (graph) {
-        if (getComputedStyle(graph).position === "static") {
-          graph.style.position = "relative";
-        }
-        graph.appendChild(exitBar);
-      } else {
-        document.body.appendChild(exitBar);
-      }
+      document.body.appendChild(exitBar);
     }
   }
 
