@@ -5,6 +5,7 @@
   margin-left: 12px;
   vertical-align: middle;
   align-items: center;
+  position: static;
 }
 
 .ghn-btn {
@@ -84,6 +85,15 @@ body.ghn-fullscreen .network-graph-container {
 
 body.ghn-fullscreen .ghn-exit-bar {
   display: flex;
+}
+
+/* Hide normal toolbar in fullscreen; only exit bar shows */
+body.ghn-fullscreen .ghn-toolbar {
+  display: none !important;
+}
+
+body.ghn-fullscreen .ghn-title-row {
+  display: none !important;
 }
 
 /* Commit filter modal */
