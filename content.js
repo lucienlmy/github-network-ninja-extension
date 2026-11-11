@@ -162,43 +162,67 @@
     toolbar.appendChild(btnFullscreen);
     toolbar.appendChild(btnCommits);
 
-    // Prefer next to title; otherwise fixed top-right near GitHub UI
+    // Place next to page title: "Network graph" / "网络图"
     let placed = false;
     const candidates = $$("h1, h2, .h1, .h2");
     for (let i = 0; i < candidates.length; i++) {
       const el = candidates[i];
-      if (/network/i.test(el.textContent || "")) {
-        el.style.display = "inline-block";
-        el.insertAdjacentElement("afterend", toolbar);
-        placed = true;
-        break;
+      const t = (el.textContent || "").trim();
+      if (/network\s*graph|网络图/i.test(t)) {
+        const wrap = document.createElement("div");
+        wrap.className = "ghn-title-row";
+        wrap.style.display = "flex";
+        wrap.style.alignItems = "center";
+        wrap.style.flexWrap = "wrap";
+        wrap.style.gap = "8px";
+        const parent = el.parentElement;
+        if (parent) {
+          parent.insertBefore(wrap, el);
+          wrap.appendChild(el);
+          wrap.appendChild(toolbar);
+          placed = true;
+          break;
+        }
       }
     }
 
     if (!placed) {
-      // Always-visible fallback: fixed under the global header
-      toolbar.style.position = "fixed";
-      toolbar.style.top = "72px";
-      toolbar.style.right = "16px";
-      toolbar.style.zIndex = "1000";
+      const container =
+        $(".js-network-graph-container") || $(".network-graph-container");
+      if (container && container.parentElement) {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.justifyContent = "flex-end";
+        row.style.gap = "8px";
+        row.style.margin = "0 0 8px 0";
+        row.appendChild(toolbar);
+        container.parentElement.insertBefore(row, container);
+        placed = true;
+      }
+    }
+
+    if (!placed) {
       document.body.appendChild(toolbar);
     }
 
-    const exitBar = document.createElement("div");
-    exitBar.className = "ghn-exit-bar";
-    const exitBtn = document.createElement("button");
-    exitBtn.type = "button";
-    exitBtn.className = "ghn-btn ghn-btn-primary";
-    exitBtn.textContent = "退出全屏";
-    exitBtn.addEventListener("click", exitFullscreen);
-    const listBtn2 = document.createElement("button");
-    listBtn2.type = "button";
-    listBtn2.className = "ghn-btn";
-    listBtn2.textContent = "提交列表";
-    listBtn2.addEventListener("click", showCommitModal);
-    exitBar.appendChild(exitBtn);
-    exitBar.appendChild(listBtn2);
-    document.body.appendChild(exitBar);
+    // Exit bar only used in fullscreen (CSS controlled)
+    if (!$(".ghn-exit-bar")) {
+      const exitBar = document.createElement("div");
+      exitBar.className = "ghn-exit-bar";
+      const exitBtn = document.createElement("button");
+      exitBtn.type = "button";
+      exitBtn.className = "ghn-btn ghn-btn-primary";
+      exitBtn.textContent = "退出全屏";
+      exitBtn.addEventListener("click", exitFullscreen);
+      const listBtn2 = document.createElement("button");
+      listBtn2.type = "button";
+      listBtn2.className = "ghn-btn";
+      listBtn2.textContent = "提交列表";
+      listBtn2.addEventListener("click", showCommitModal);
+      exitBar.appendChild(exitBtn);
+      exitBar.appendChild(listBtn2);
+      document.body.appendChild(exitBar);
+    }
   }
 
   // ---------- commit list ----------
@@ -474,18 +498,27 @@
 
   function init() {
     if (!getRepo()) return;
-    // Show buttons ASAP; graph may load later
-    createToolbar();
-    waitFor(".js-network-graph-container, .network-graph-container, canvas, h1, h2", 20000)
-      .then(function () {
-        // Re-place near title if we used fixed fallback
-        var tb = $(".ghn-toolbar");
-        if (tb && tb.style.position === "fixed") {
-          tb.remove();
-          createToolbar();
-        }
-      })
-      .catch(function () {});
+    function tryPlace() {
+      createToolbar();
+    }
+    tryPlace();
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      if (!$(".ghn-toolbar")) tryPlace();
+      var tb = $(".ghn-toolbar");
+      var title = null;
+      $$("h1, h2").forEach(function (el) {
+        if (/网络图|network\s*graph/i.test(el.textContent || "")) title = el;
+      });
+      if (tb && title && title.parentElement && !title.parentElement.contains(tb) && !title.closest(".ghn-title-row")) {
+        tb.remove();
+        var bar = $(".ghn-exit-bar");
+        if (bar) bar.remove();
+        createToolbar();
+      }
+      if (tries >= 20) clearInterval(timer);
+    }, 500);
   }
 
   if (document.readyState === "loading") {
