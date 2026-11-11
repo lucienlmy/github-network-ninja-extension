@@ -74,39 +74,104 @@
   // ---------- fullscreen ----------
   let isFullscreen = false;
 
-  function enterFullscreen() {
-    const container =
-      $(".js-network-graph-container") || $(".network-graph-container");
-    if (!container) return;
-    // Do NOT touch canvas width/height attributes — that breaks hit-testing
-    // for hover tooltips. Only expand the container via CSS and let GitHub's
-    // network-graph component resize the canvas on the window "resize" event.
-    document.body.classList.add("ghn-fullscreen");
-    isFullscreen = true;
-    updateButtons();
+  function getGraphEl() {
+    return (
+      $("network-graph") ||
+      $(".js-network-graph-container") ||
+      $(".network-graph-container")
+    );
+  }
+
+  function nudgeGraphResize() {
+    // Nudge the network-graph element so ResizeObserver / layout hooks fire.
+    // Never write canvas.width/height ourselves — that clears the buffer and
+    // desyncs hover hit-testing inside GitHub's component.
+    const container = getGraphEl();
+    if (!container) {
+      window.dispatchEvent(new Event("resize"));
+      return;
+    }
+    const prev = container.style.minHeight;
+    container.style.minHeight =
+      (container.clientHeight || window.innerHeight) + "px";
+    window.dispatchEvent(new Event("resize"));
     requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        window.dispatchEvent(new Event("resize"));
-      });
+      container.style.minHeight = prev || "";
+      window.dispatchEvent(new Event("resize"));
     });
   }
 
+  function enterFullscreen() {
+    const container = getGraphEl();
+    if (!container) return;
+
+    const req =
+      container.requestFullscreen ||
+      container.webkitRequestFullscreen ||
+      container.msRequestFullscreen;
+
+    document.body.classList.add("ghn-fullscreen");
+    isFullscreen = true;
+    updateButtons();
+
+    if (req) {
+      Promise.resolve(req.call(container))
+        .then(function () {
+          setTimeout(nudgeGraphResize, 30);
+          setTimeout(nudgeGraphResize, 150);
+        })
+        .catch(function () {
+          // CSS-only fallback (body.ghn-fullscreen styles)
+          setTimeout(nudgeGraphResize, 30);
+          setTimeout(nudgeGraphResize, 150);
+        });
+    } else {
+      setTimeout(nudgeGraphResize, 30);
+      setTimeout(nudgeGraphResize, 150);
+    }
+  }
+
   function exitFullscreen() {
+    const exitFs =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.msExitFullscreen;
+    if (
+      exitFs &&
+      (document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement)
+    ) {
+      try {
+        exitFs.call(document);
+      } catch (e) {}
+    }
     document.body.classList.remove("ghn-fullscreen");
     isFullscreen = false;
     updateButtons();
-    // Let layout settle, then network-graph resizes canvas itself
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        window.dispatchEvent(new Event("resize"));
-      });
-    });
+    setTimeout(nudgeGraphResize, 30);
+    setTimeout(nudgeGraphResize, 150);
   }
 
   function toggleFullscreen() {
     if (isFullscreen) exitFullscreen();
     else enterFullscreen();
   }
+
+  document.addEventListener("fullscreenchange", function () {
+    const fs = !!document.fullscreenElement;
+    if (!fs && isFullscreen) {
+      document.body.classList.remove("ghn-fullscreen");
+      isFullscreen = false;
+      updateButtons();
+      setTimeout(nudgeGraphResize, 50);
+    } else if (fs && !isFullscreen) {
+      document.body.classList.add("ghn-fullscreen");
+      isFullscreen = true;
+      updateButtons();
+      setTimeout(nudgeGraphResize, 50);
+    }
+  });
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && isFullscreen) exitFullscreen();
@@ -144,7 +209,7 @@
 
     // Place next to page title: "Network graph" / "网络图"
     let placed = false;
-    const candidates = $$("h1, h2, .h1, .h2");
+ const candidates = $$("h1, h2, .h1, .h2");
     for (let i = 0; i < candidates.length; i++) {
       const el = candidates[i];
       const t = (el.textContent || "").trim();
@@ -185,7 +250,7 @@
       document.body.appendChild(toolbar);
     }
 
-    // Exit bar only used in fullscreen (CSS controlled)
+    // Exit bar: prefer inside graph element so it stays visible in native fullscreen
     if (!$(".ghn-exit-bar")) {
       const exitBar = document.createElement("div");
       exitBar.className = "ghn-exit-bar";
@@ -201,7 +266,15 @@
       listBtn2.addEventListener("click", showCommitModal);
       exitBar.appendChild(exitBtn);
       exitBar.appendChild(listBtn2);
-      document.body.appendChild(exitBar);
+      const graph = getGraphEl();
+      if (graph) {
+        if (getComputedStyle(graph).position === "static") {
+          graph.style.position = "relative";
+        }
+        graph.appendChild(exitBar);
+      } else {
+        document.body.appendChild(exitBar);
+      }
     }
   }
 
