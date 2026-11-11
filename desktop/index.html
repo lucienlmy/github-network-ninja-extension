@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Network Ninja</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="bar">
+        <div class="title">
+          GitHub Network Ninja
+          <span id="status" class="status">输入仓库并加载</span>
+        </div>
+        <div class="actions">
+          <input id="repo" type="text" placeholder="owner/repo 例如 dexyfex/CodeWalker" />
+          <button id="btn-load" type="button" class="btn primary">加载网络图</button>
+        </div>
+      </header>
+      <main class="body">
+        <canvas id="canvas"></canvas>
+        <div id="tip" class="tip" style="display: none"></div>
+      </main>
+      <footer class="help">
+        本地版 · 数据来自 GitHub network/meta 与 chunk · 拖拽平移 · 滚轮缩放 · 悬停详情 · 单击打开提交
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
