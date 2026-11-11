@@ -71,18 +71,8 @@
     return pageRequest("ghn-get-nethash", {});
   }
 
-  // ---------- maximize (windowed, not browser fullscreen) ----------
+  // ---------- focus mode (hide chrome only) ----------
   let isFullscreen = false;
-
-  function getNetworkPanel() {
-    // Prefer the whole Network graph panel (owners + canvas), not only canvas
-    return (
-      $("#network") ||
-      $(".network") ||
-      $("network-graph") ||
-      $(".js-network-graph-container")
-    );
-  }
 
   function getGraphEl() {
     return (
@@ -92,28 +82,22 @@
     );
   }
 
-  function afterLayout() {
-    // Only notify layout; never touch canvas buffer size
-    requestAnimationFrame(function () {
-      window.dispatchEvent(new Event("resize"));
-      setTimeout(function () {
-        window.dispatchEvent(new Event("resize"));
-      }, 100);
-    });
-  }
-
   function enterFullscreen() {
     document.body.classList.add("ghn-fullscreen");
     isFullscreen = true;
     updateButtons();
-    afterLayout();
+    requestAnimationFrame(function () {
+      window.dispatchEvent(new Event("resize"));
+    });
   }
 
   function exitFullscreen() {
     document.body.classList.remove("ghn-fullscreen");
     isFullscreen = false;
     updateButtons();
-    afterLayout();
+    requestAnimationFrame(function () {
+      window.dispatchEvent(new Event("resize"));
+    });
   }
 
   function toggleFullscreen() {
@@ -131,7 +115,7 @@
 
   function updateButtons() {
     if (btnFullscreen) {
-      btnFullscreen.textContent = isFullscreen ? "退出最大化" : "最大化网络图";
+      btnFullscreen.textContent = isFullscreen ? "退出专注" : "专注模式";
       btnFullscreen.classList.toggle("ghn-btn-primary", !isFullscreen);
     }
   }
@@ -145,7 +129,7 @@
     btnFullscreen = document.createElement("button");
     btnFullscreen.type = "button";
     btnFullscreen.className = "ghn-btn ghn-btn-primary";
-    btnFullscreen.textContent = "最大化网络图";
+    btnFullscreen.textContent = "专注模式";
     btnFullscreen.addEventListener("click", toggleFullscreen);
 
     const btnCommits = document.createElement("button");
@@ -157,7 +141,6 @@
     toolbar.appendChild(btnFullscreen);
     toolbar.appendChild(btnCommits);
 
-    // Place next to page title: "Network graph" / "网络图"
     let placed = false;
     const candidates = $$("h1, h2, .h1, .h2");
     for (let i = 0; i < candidates.length; i++) {
@@ -206,7 +189,7 @@
       const exitBtn = document.createElement("button");
       exitBtn.type = "button";
       exitBtn.className = "ghn-btn ghn-btn-primary";
-      exitBtn.textContent = "退出最大化";
+      exitBtn.textContent = "退出专注";
       exitBtn.addEventListener("click", exitFullscreen);
       const listBtn2 = document.createElement("button");
       listBtn2.type = "button";
