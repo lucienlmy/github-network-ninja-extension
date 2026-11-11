@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "GitHub Network Ninja",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "改进 GitHub Network Graph：可切换全屏 + 可搜索提交列表",
   "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*/network"],
+      "js": ["page.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": ["https://github.com/*/*/network"],
       "js": ["content.js"],
