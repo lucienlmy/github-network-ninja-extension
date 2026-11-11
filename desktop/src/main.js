@@ -427,9 +427,12 @@ canvas.addEventListener("click", (e) => {
 });
 
 document.getElementById("btn-load").addEventListener("click", async () => {
-  const repo = (repoEl.value || "").trim().replace(/^https?:\/\/github\.com\//, "").replace(/\/network.*$/, "").replace(/\/$/, "");
-  if (!/ maj-[-\w.]+\/[-\w.]+$/.test(repo) && !/^[-
-\w.]+\/[-\w.]+$/.test(repo)) {
+  const repo = (repoEl.value || "")
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, "")
+    .replace(/\/network.*$/, "")
+    .replace(/\/$/, "");
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
     statusEl.textContent = "请输入有效的 owner/repo";
     return;
   }
