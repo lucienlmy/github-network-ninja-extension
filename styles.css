@@ -41,7 +41,7 @@
   border-color: #0860ca;
 }
 
-/* Fullscreen mode */
+/* Fullscreen mode (CSS fallback when native API unavailable) */
 body.ghn-fullscreen {
   overflow: hidden !important;
 }
@@ -78,16 +78,37 @@ body.ghn-fullscreen network-graph {
   box-shadow: none !important;
 }
 
-/* Let the component control canvas buffer size; only stretch display box */
 body.ghn-fullscreen .js-network-graph-container canvas,
 body.ghn-fullscreen network-graph canvas {
   display: block !important;
 }
 
-/* Hovercards / popovers above the fullscreen graph */
 body.ghn-fullscreen .Popover,
 body.ghn-fullscreen .js-hovercard-content {
   z-index: 10050 !important;
+}
+
+/* Native Fullscreen API on the graph element */
+network-graph:fullscreen,
+network-graph:-webkit-full-screen,
+.js-network-graph-container:fullscreen,
+.js-network-graph-container:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  background: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+network-graph:fullscreen canvas,
+network-graph:-webkit-full-screen canvas,
+.js-network-graph-container:fullscreen canvas,
+.js-network-graph-container:-webkit-full-screen canvas {
+  display: block !important;
 }
 
 /* Floating exit button when fullscreen */
@@ -100,15 +121,15 @@ body.ghn-fullscreen .js-hovercard-content {
   gap: 8px;
 }
 
-body.ghn-fullscreen .ghn-exit-bar {
+body.ghn-fullscreen .ghn-exit-bar,
+network-graph:fullscreen .ghn-exit-bar,
+network-graph:-webkit-full-screen .ghn-exit-bar,
+.js-network-graph-container:fullscreen .ghn-exit-bar,
+.js-network-graph-container:-webkit-full-screen .ghn-exit-bar {
   display: flex;
 }
 
-/* Hide normal toolbar in fullscreen; only exit bar shows */
-body.ghn-fullscreen .ghn-toolbar {
-  display: none !important;
-}
-
+body.ghn-fullscreen .ghn-toolbar,
 body.ghn-fullscreen .ghn-title-row {
   display: none !important;
 }
