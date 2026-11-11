@@ -1,11 +1,10 @@
-/* Toolbar buttons near the Network graph title */
+/* Toolbar */
 .ghn-toolbar {
   display: inline-flex;
   gap: 8px;
   margin-left: 12px;
   vertical-align: middle;
   align-items: center;
-  position: static;
 }
 
 .ghn-btn {
@@ -24,60 +23,27 @@
   white-space: nowrap;
   user-select: none;
 }
+.ghn-btn:hover { background: #f3f4f6; }
+.ghn-btn-primary { background: #0969da; border-color: #0969da; color: #fff; }
+.ghn-btn-primary:hover { background: #0860ca; }
 
-.ghn-btn:hover {
-  background: #f3f4f6;
-  border-color: rgba(31, 35, 40, 0.2);
-}
-
-.ghn-btn-primary {
-  background: #0969da;
-  border-color: #0969da;
-  color: #fff;
-}
-
-.ghn-btn-primary:hover {
-  background: #0860ca;
-  border-color: #0860ca;
-}
-
-/* Focus mode: hide chrome only, keep network in normal flow */
-/* Do NOT position:fixed #network / network-graph — that breaks hover */
-
-body.ghn-fullscreen .AppHeader,
-body.ghn-fullscreen header[role="banner"],
-body.ghn-fullscreen .js-header-wrapper,
-body.ghn-fullscreen .AppHeader-globalBar,
-body.ghn-fullscreen .AppHeader-localBar,
-body.ghn-fullscreen nav[aria-label="Repository"],
-body.ghn-fullscreen nav[aria-label="Repository file navigation"],
-body.ghn-fullscreen .Layout-sidebar,
-body.ghn-fullscreen [data-testid="repos-file-tree-container"],
-body.ghn-fullscreen .flash-full,
-body.ghn-fullscreen .gh-header-actions,
-body.ghn-fullscreen footer.footer,
-body.ghn-fullscreen .footer,
-body.ghn-fullscreen [aria-label="Insights"] {
+/*
+  Focus mode: hide ONLY the global header bar.
+  Do not touch #network, Layout, sidebar, canvas, or overflow.
+  display:none on large layout regions was breaking canvas hover.
+*/
+body.ghn-fullscreen .AppHeader-globalBar {
   display: none !important;
 }
 
-body.ghn-fullscreen .ghn-title-row,
-body.ghn-fullscreen .ghn-toolbar {
-  display: none !important;
-}
-
-body.ghn-fullscreen .Layout-main,
-body.ghn-fullscreen main,
-body.ghn-fullscreen [data-view-component="true"].Layout-main {
-  width: 100% !important;
-  max-width: none !important;
-  flex: 1 1 100% !important;
-}
-
-body.ghn-fullscreen #network,
-body.ghn-fullscreen .network {
-  max-width: none !important;
-  width: 100% !important;
+body.ghn-fullscreen .AppHeader-localBar {
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 .ghn-exit-bar {
@@ -87,113 +53,39 @@ body.ghn-fullscreen .network {
   z-index: 10001;
   display: none;
   gap: 8px;
+  pointer-events: auto;
 }
-
-body.ghn-fullscreen .ghn-exit-bar {
-  display: flex;
-}
+body.ghn-fullscreen .ghn-exit-bar { display: flex; }
 
 .ghn-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 10010;
-  background: rgba(0, 0, 0, 0.5);
-  cursor: pointer;
+  position: fixed; inset: 0; z-index: 10010;
+  background: rgba(0,0,0,0.5); cursor: pointer;
 }
-
 .ghn-modal {
-  position: fixed;
-  left: 8%;
-  right: 8%;
-  top: 8%;
-  bottom: 8%;
-  z-index: 10011;
-  background: #f6f8fa;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  position: fixed; left: 8%; right: 8%; top: 8%; bottom: 8%;
+  z-index: 10011; background: #f6f8fa; border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  display: flex; flex-direction: column; overflow: hidden;
   padding: 16px 20px;
 }
-
 .ghn-modal input {
-  width: 100%;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  outline: none;
+  width: 100%; margin-bottom: 12px; padding: 8px 12px;
+  font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; outline: none;
 }
-
 .ghn-modal input:focus {
   border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
+  box-shadow: 0 0 0 3px rgba(9,105,218,0.2);
 }
-
-.ghn-table-wrap {
-  flex: 1;
-  overflow: auto;
-}
-
-.ghn-modal table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.ghn-modal tr {
-  border-bottom: 1px solid #d0d7de;
-}
-
-.ghn-modal tr:hover {
-  background: #ddf4ff;
-}
-
-.ghn-modal td {
-  padding: 6px 8px;
-  vertical-align: top;
-}
-
-.ghn-modal .author {
-  white-space: nowrap;
-  color: #656d76;
-  width: 120px;
-}
-
-.ghn-modal .message {
-  word-break: break-word;
-}
-
-.ghn-modal .message a {
-  color: #0969da;
-  text-decoration: none;
-}
-
-.ghn-modal .message a:hover {
-  text-decoration: underline;
-}
-
-.ghn-modal tr.non-merged .message {
-  font-weight: 600;
-}
-
-.ghn-modal .date {
-  white-space: nowrap;
-  color: #656d76;
-  width: 160px;
-  text-align: right;
-}
-
-.ghn-loading {
-  text-align: center;
-  color: #656d76;
-  padding: 40px 20px;
-}
-
-.ghn-loading .num {
-  font-size: 28px;
-  font-weight: 600;
-  color: #24292f;
-}
+.ghn-table-wrap { flex: 1; overflow: auto; }
+.ghn-modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ghn-modal tr { border-bottom: 1px solid #d0d7de; }
+.ghn-modal tr:hover { background: #ddf4ff; }
+.ghn-modal td { padding: 6px 8px; vertical-align: top; }
+.ghn-modal .author { white-space: nowrap; color: #656d76; width: 120px; }
+.ghn-modal .message { word-break: break-word; }
+.ghn-modal .message a { color: #0969da; text-decoration: none; }
+.ghn-modal .message a:hover { text-decoration: underline; }
+.ghn-modal tr.non-merged .message { font-weight: 600; }
+.ghn-modal .date { white-space: nowrap; color: #656d76; width: 160px; text-align: right; }
+.ghn-loading { text-align: center; color: #656d76; padding: 40px 20px; }
+.ghn-loading .num { font-size: 28px; font-weight: 600; color: #24292f; }
