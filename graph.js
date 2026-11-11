@@ -1,4 +1,4 @@
-// Custom network graph — same layout language as GitHub Network, our own canvas
+// Custom network graph — GitHub-like layout, viewport-culled + rAF
 (function () {
   "use strict";
 
@@ -7,8 +7,6 @@
   var NODE_R = 3.5;
   var PAD_L = 128;
   var PAD_T = 52;
-  var PAD_R = 40;
-  var PAD_B = 24;
 
   var root = null;
   var canvas = null;
@@ -18,10 +16,13 @@
   var searchEl = null;
 
   var commits = [];
-  var commitByKey = {};
   var meta = null;
   var repo = null;
   var pageRequest = null;
+
+  var byTime = [];
+  var maxT = 0;
+  var maxS = 0;
 
   var offsetX = 0;
   var offsetY = 0;
@@ -32,6 +33,7 @@
   var lastMY = 0;
   var hoverCommit = null;
   var filterQ = "";
+  var filtered = null;
 
   var colorCache = {};
   var palette = [
@@ -47,15 +49,26 @@
     "#116329",
   ];
 
+  var needsDraw = false;
+  var rafId = 0;
+
+  function scheduleDraw() {
+    if (needsDraw) return;
+    needsDraw = true;
+    rafId = requestAnimationFrame(function () {
+      needsDraw = false;
+      draw();
+    });
+  }
+
   function colorFor(login, space) {
     var key = login || "s" + space;
     if (colorCache[key]) return colorCache[key];
     var h = 0;
     var s = String(key);
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    var c = palette[h % palette.length];
-    colorCache[key] = c;
-    return c;
+    colorCache[key] = palette[h % palette.length];
+    return colorCache[key];
   }
 
   function userBySpace(space) {
@@ -66,10 +79,10 @@
         var u = (meta.users || []).find(function (x) {
           return x.name === name;
         });
-        return { name: name, repo: u ? u.repo : "?", block: meta.blocks[i] };
+        return { name: name, repo: u ? u.repo : "?" };
       }
     }
-    return { name: "?", repo: "?", block: null };
+    return { name: "?", repo: "?" };
   }
 
   function open(opts) {
@@ -81,13 +94,15 @@
   }
 
   function close() {
+    if (rafId) cancelAnimationFrame(rafId);
     if (root && root.parentNode) root.parentNode.removeChild(root);
     root = null;
     canvas = null;
     ctx = null;
     commits = [];
-    commitByKey = {};
+    byTime = [];
     hoverCommit = null;
+    filtered = null;
     document.body.style.overflow = "";
   }
 
@@ -106,19 +121,21 @@
       "</div></div>" +
       '<div class="ghn-graph-body"><canvas></canvas>' +
       '<div class="ghn-graph-tip" style="display:none"></div></div>' +
-      '<div class="ghn-graph-help">与原版相同：左 Owners · 上时间轴 · 点=提交 · 线=父子关系　｜　拖拽平移 · 滚轮缩放 · 悬停详情 · 单击打开</div>';
+      '<div class="ghn-graph-help">左 Owners · 上时间轴 · 拖拽平移 · 滚轮缩放 · 悬停详情 · 单击打开</div>';
 
     document.body.appendChild(root);
     canvas = root.querySelector("canvas");
-    ctx = canvas.getContext("2d");
+    ctx = canvas.getContext("2d", { alpha: false });
     tip = root.querySelector(".ghn-graph-tip");
     statusEl = root.querySelector(".ghn-graph-status");
     searchEl = root.querySelector(".ghn-graph-search");
 
     root.querySelector(".ghn-graph-close").addEventListener("click", close);
+    var searchTimer = 0;
     searchEl.addEventListener("input", function () {
       filterQ = (searchEl.value || "").toLowerCase().trim();
-      draw();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(rebuildFilter, 120);
     });
 
     canvas.addEventListener("mousedown", onDown);
@@ -128,12 +145,30 @@
     canvas.addEventListener("click", onClick);
     canvas.addEventListener("mousemove", onHover);
 
-    window.addEventListener("keydown", function onKey(e) {
+    window.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && root) close();
     });
 
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", function () {
+      resizeCanvas();
+    });
+  }
+
+  function rebuildFilter() {
+    if (!filterQ) {
+      filtered = null;
+    } else {
+      filtered = [];
+      for (var i = 0; i < commits.length; i++) {
+        if (matchesFilter(commits[i])) filtered.push(commits[i]);
+      }
+    }
+    scheduleDraw();
+  }
+
+  function listCommits() {
+    return filtered || commits;
   }
 
   function resizeCanvas() {
@@ -141,13 +176,13 @@
     var body = root.querySelector(".ghn-graph-body");
     var w = body.clientWidth;
     var h = body.clientHeight;
-    var dpr = window.devicePixelRatio || 1;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.max(1, Math.floor(w * dpr));
     canvas.height = Math.max(1, Math.floor(h * dpr));
     canvas.style.width = w + "px";
     canvas.style.height = h + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw();
+    scheduleDraw();
   }
 
   async function loadData() {
@@ -162,7 +197,7 @@
       commits = [];
       var offset = 0;
       var pageSize = 500;
-      var maxCommits = 15000;
+      var maxCommits = 12000;
       while (offset < maxCommits) {
         statusEl.textContent = "拉取提交 " + commits.length + "…";
         var url =
@@ -176,35 +211,43 @@
           (offset + pageSize - 1);
         var resp = await pageRequest("ghn-fetch-chunk", { url: url });
         var batch = resp.commits || [];
-        commits = commits.concat(batch);
+        for (var i = 0; i < batch.length; i++) commits.push(batch[i]);
         if (batch.length < pageSize) break;
         offset += pageSize;
-        await sleep(250);
+        await sleep(200);
       }
 
-      commitByKey = {};
-      commits.forEach(function (c) {
-        commitByKey[c.time + "|" + c.space] = c;
+      maxT = 0;
+      maxS = 0;
+      for (var j = 0; j < commits.length; j++) {
+        if (commits[j].time > maxT) maxT = commits[j].time;
+        if (commits[j].space > maxS) maxS = commits[j].space;
+      }
+      if (meta.blocks) {
+        meta.blocks.forEach(function (b) {
+          var end = b.start + (b.count || 1) - 1;
+          if (end > maxS) maxS = end;
+        });
+      }
+      if (meta.dates && meta.dates.length - 1 > maxT)
+        maxT = meta.dates.length - 1;
+
+      byTime = commits.slice().sort(function (a, b) {
+        return a.time - b.time;
       });
 
       statusEl.textContent =
         commits.length +
         " 提交 · " +
         ((meta.users && meta.users.length) || 0) +
-        " 仓库 · 最近 " +
-        ((meta.dates && meta.dates.length) || 0) +
-        " 日刻度";
+        " 仓库";
 
-      var maxT = 0;
-      commits.forEach(function (c) {
-        if (c.time > maxT) maxT = c.time;
-      });
       var body = root.querySelector(".ghn-graph-body");
       var viewW = body.clientWidth;
       scale = 1;
-      offsetX = Math.min(20, viewW - PAD_L - (maxT + 2) * COL_W - PAD_R);
+      offsetX = Math.min(20, viewW - PAD_L - (maxT + 2) * COL_W - 40);
       offsetY = 10;
-      draw();
+      scheduleDraw();
     } catch (err) {
       statusEl.textContent =
         "加载失败：" + (err && err.message ? err.message : String(err));
@@ -241,65 +284,56 @@
     return blob.indexOf(filterQ) !== -1;
   }
 
-  function maxSpace() {
-    var m = 0;
-    if (meta && meta.blocks) {
-      meta.blocks.forEach(function (b) {
-        var end = b.start + (b.count || 1) - 1;
-        if (end > m) m = end;
-      });
-    }
-    commits.forEach(function (c) {
-      if (c.space > m) m = c.space;
-    });
-    return m;
+  function visibleTimeRange(w) {
+    var t0 = Math.floor(-offsetX / (COL_W * scale)) - 2;
+    var t1 = Math.ceil((w - PAD_L - offsetX) / (COL_W * scale)) + 2;
+    if (t0 < 0) t0 = 0;
+    if (t1 > maxT) t1 = maxT;
+    return { t0: t0, t1: t1 };
   }
 
-  function maxTime() {
-    var m = 0;
-    commits.forEach(function (c) {
-      if (c.time > m) m = c.time;
-    });
-    if (meta && meta.dates && meta.dates.length - 1 > m)
-      m = meta.dates.length - 1;
-    return m;
+  function visibleSpaceRange(h) {
+    var s0 = Math.floor(-offsetY / (ROW_H * scale)) - 1;
+    var s1 = Math.ceil((h - PAD_T - offsetY) / (ROW_H * scale)) + 1;
+    if (s0 < 0) s0 = 0;
+    if (s1 > maxS) s1 = maxS;
+    return { s0: s0, s1: s1 };
   }
 
   function draw() {
-    if (!ctx || !canvas) return;
+    if (!ctx || !canvas || !meta) return;
     var w = canvas.clientWidth;
     var h = canvas.clientHeight;
-    ctx.clearRect(0, 0, w, h);
+
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
-    if (!meta) return;
 
-    var ms = maxSpace();
-    var mt = maxTime();
-    var dates = meta.dates || [];
+    var tr = visibleTimeRange(w);
+    var sr = visibleSpaceRange(h);
+    var list = listCommits();
 
     if (meta.blocks) {
-      meta.blocks.forEach(function (b, idx) {
+      for (var bi = 0; bi < meta.blocks.length; bi++) {
+        var b = meta.blocks[bi];
+        var bEnd = b.start + (b.count || 1) - 1;
+        if (bEnd < sr.s0 || b.start > sr.s1) continue;
         var y0 = wy(b.start) - ROW_H * scale * 0.5;
         var y1 = wy(b.start + b.count) - ROW_H * scale * 0.5;
-        if (y1 < 0 || y0 > h) return;
-        ctx.fillStyle = idx % 2 === 0 ? "#f6f8fa" : "#ffffff";
+        ctx.fillStyle = bi % 2 === 0 ? "#f6f8fa" : "#ffffff";
         ctx.fillRect(0, y0, w, Math.max(1, y1 - y0));
-      });
+      }
     }
 
-    for (var s = 0; s <= ms; s++) {
+    ctx.strokeStyle = "#eaeef2";
+    ctx.lineWidth = 1;
+    for (var s = sr.s0; s <= sr.s1; s++) {
       var y = wy(s);
-      if (y < PAD_T - 20 || y > h + 20) continue;
-      ctx.strokeStyle = "#eaeef2";
-      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(PAD_L, y);
       ctx.lineTo(w, y);
       ctx.stroke();
     }
 
-    ctx.save();
     ctx.fillStyle = "#f6f8fa";
     ctx.fillRect(0, 0, w, PAD_T);
     ctx.strokeStyle = "#d0d7de";
@@ -320,11 +354,11 @@
     ctx.lineTo(PAD_L - 0.5, h);
     ctx.stroke();
 
-    var step = scale >= 1.2 ? 1 : scale >= 0.7 ? 2 : scale >= 0.4 ? 4 : 8;
+    var dates = meta.dates || [];
+    var step = scale >= 1.4 ? 1 : scale >= 0.9 ? 2 : scale >= 0.55 ? 4 : 8;
     var lastMonth = "";
-    for (var t = 0; t <= mt; t++) {
+    for (var t = tr.t0; t <= tr.t1; t++) {
       var x = wx(t);
-      if (x < PAD_L - 10 || x > w + 10) continue;
       ctx.strokeStyle = "#eaeef2";
       ctx.beginPath();
       ctx.moveTo(x, PAD_T);
@@ -337,7 +371,6 @@
         var parts = String(dates[t]).split("-");
         if (parts.length >= 3) {
           label = String(parseInt(parts[2], 10));
-          var mon = parts[1];
           var months = [
             "",
             "Jan",
@@ -353,11 +386,9 @@
             "Nov",
             "Dec",
           ];
-          var mi = parseInt(mon, 10);
-          monthLab = months[mi] || mon;
+          monthLab = months[parseInt(parts[1], 10)] || parts[1];
         } else label = String(dates[t]);
       } else label = String(t);
-
       ctx.fillStyle = "#656d76";
       ctx.font = "10px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
       ctx.textAlign = "center";
@@ -370,25 +401,26 @@
         lastMonth = monthLab;
       }
     }
-    ctx.restore();
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, PAD_T, PAD_L - 1, h - PAD_T);
     ctx.clip();
     if (meta.blocks) {
-      meta.blocks.forEach(function (b) {
-        var yMid = (wy(b.start) + wy(b.start + b.count - 1)) / 2;
-        if (yMid < PAD_T || yMid > h) return;
+      for (var bi2 = 0; bi2 < meta.blocks.length; bi2++) {
+        var bb = meta.blocks[bi2];
+        var bEnd2 = bb.start + (bb.count || 1) - 1;
+        if (bEnd2 < sr.s0 || bb.start > sr.s1) continue;
+        var yMid = (wy(bb.start) + wy(bb.start + bb.count - 1)) / 2;
         ctx.fillStyle = "#24292f";
         ctx.font =
           "12px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        var name = b.name || "?";
+        var name = bb.name || "?";
         if (name.length > 14) name = name.slice(0, 12) + "…";
         ctx.fillText(name, PAD_L / 2, yMid);
-      });
+      }
     }
     ctx.restore();
 
@@ -397,67 +429,74 @@
     ctx.rect(PAD_L, PAD_T, w - PAD_L, h - PAD_T);
     ctx.clip();
 
-    commits.forEach(function (c) {
-      if (!matchesFilter(c)) return;
-      var parents = c.parents || [];
-      var x2 = wx(c.time);
-      var y2 = wy(c.space);
-      var col = colorFor(c.login || c.author, c.space);
-      parents.forEach(function (p) {
-        var x1 = wx(p[2]);
-        var y1 = wy(p[1]);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = Math.max(1.2, 1.6 * Math.min(scale, 1.5));
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        if (y1 === y2) {
-          ctx.lineTo(x2, y2);
-        } else {
-          var midX = x1 + Math.max(8 * scale, (x2 - x1) * 0.45);
-          ctx.lineTo(midX, y1);
-          ctx.lineTo(midX, y2);
-          ctx.lineTo(x2, y2);
-        }
-        ctx.stroke();
-      });
-    });
+    var drawEdges = scale >= 0.45;
+    var edgeW = Math.max(1, 1.4 * Math.min(scale, 1.4));
 
-    commits.forEach(function (c) {
-      if (!matchesFilter(c)) return;
-      var x = wx(c.time);
-      var y = wy(c.space);
-      if (x < PAD_L - 20 || x > w + 20 || y < PAD_T - 20 || y > h + 20)
-        return;
-      var r = Math.max(2.5, NODE_R * Math.min(scale, 1.8));
+    if (drawEdges) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.time < tr.t0 - 5 || c.time > tr.t1 + 1) continue;
+        if (c.space < sr.s0 - 2 || c.space > sr.s1 + 2) continue;
+        var parents = c.parents;
+        if (!parents || !parents.length) continue;
+        var x2 = wx(c.time);
+        var y2 = wy(c.space);
+        var col = colorFor(c.login || c.author, c.space);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = edgeW;
+        for (var pi = 0; pi < parents.length; pi++) {
+          var p = parents[pi];
+          var x1 = wx(p[2]);
+          var y1 = wy(p[1]);
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          if (y1 === y2) {
+            ctx.lineTo(x2, y2);
+          } else {
+            var midX = x1 + Math.max(6 * scale, (x2 - x1) * 0.4);
+            ctx.lineTo(midX, y1);
+            ctx.lineTo(midX, y2);
+            ctx.lineTo(x2, y2);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    var r = Math.max(2.2, NODE_R * Math.min(scale, 1.6));
+    for (var ni = 0; ni < list.length; ni++) {
+      var n = list[ni];
+      if (n.time < tr.t0 || n.time > tr.t1) continue;
+      if (n.space < sr.s0 || n.space > sr.s1) continue;
+      var nx = wx(n.time);
+      var ny = wy(n.space);
       ctx.beginPath();
-      ctx.fillStyle = colorFor(c.login || c.author, c.space);
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = colorFor(n.login || n.author, n.space);
+      ctx.arc(nx, ny, r, 0, Math.PI * 2);
       ctx.fill();
-      if (hoverCommit && hoverCommit.id === c.id) {
+      if (hoverCommit && hoverCommit.id === n.id) {
         ctx.strokeStyle = "#0969da";
         ctx.lineWidth = 2.5;
         ctx.stroke();
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(9,105,218,0.35)";
-        ctx.lineWidth = 1;
-        ctx.arc(x, y, r + 4, 0, Math.PI * 2);
-        ctx.stroke();
-      } else {
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1;
-        ctx.stroke();
       }
-    });
+    }
+
     ctx.restore();
   }
 
   function hitTest(sx, sy) {
     if (sx < PAD_L || sy < PAD_T) return null;
+    var t = (sx - PAD_L - offsetX) / (COL_W * scale);
+    var s = (sy - PAD_T - offsetY) / (ROW_H * scale);
+    var t0 = Math.floor(t) - 1;
+    var t1 = Math.ceil(t) + 1;
     var best = null;
-    var bestD = Math.max(8, 10 * scale);
-    for (var i = 0; i < commits.length; i++) {
-      var c = commits[i];
-      if (!matchesFilter(c)) continue;
+    var bestD = Math.max(8, 9 * scale);
+    var list = listCommits();
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c.time < t0 || c.time > t1) continue;
+      if (Math.abs(c.space - s) > 1.5) continue;
       var dx = wx(c.time) - sx;
       var dy = wy(c.space) - sy;
       var d = Math.sqrt(dx * dx + dy * dy);
@@ -477,12 +516,14 @@
     var c = hitTest(sx, sy);
     if (c !== hoverCommit) {
       hoverCommit = c;
-      draw();
+      scheduleDraw();
       if (c) showTip(c, e.clientX, e.clientY);
       else hideTip();
     } else if (c) {
-      tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 380) + "px";
-      tip.style.top = Math.min(e.clientY + 14, window.innerHeight - 120) + "px";
+      tip.style.left =
+        Math.min(e.clientX + 14, window.innerWidth - 380) + "px";
+      tip.style.top =
+        Math.min(e.clientY + 14, window.innerHeight - 120) + "px";
     }
   }
 
@@ -527,7 +568,7 @@
     lastMX = e.clientX;
     lastMY = e.clientY;
     hideTip();
-    draw();
+    scheduleDraw();
   }
   function onUp() {
     dragging = false;
@@ -544,7 +585,7 @@
     scale = Math.min(3.5, Math.max(0.3, scale * delta));
     offsetX = sx - PAD_L - t0 * COL_W * scale;
     offsetY = sy - PAD_T - s0 * ROW_H * scale;
-    draw();
+    scheduleDraw();
   }
 
   function onClick(e) {
