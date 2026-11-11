@@ -1,28 +1,31 @@
 # GitHub Network Ninja（浏览器扩展）
 
-改进 GitHub 仓库 **Network Graph** 页面的体验：
+改进 GitHub 仓库 **Network Graph** 页面：可切换全屏 + 可搜索提交列表。
 
-- **可切换全屏**：默认正常布局，需要时一键全屏；`Esc` 或点「退出全屏」退出
-- **可搜索提交列表**：拉取网络图中的提交，支持按作者 / 信息 / 日期过滤
-- 按钮在「网络图 / Network graph」标题旁
+## 安装（Windows / 开发者模式）
 
-## 安装（开发者模式）
+在扩展目录执行：
 
 ```powershell
-cd "你的目录\github-network-ninja-extension"
 git pull
-
-# 生成彩色蜘蛛网图标（任选一种）
 py scripts\write_icons.py
-# 或
-powershell -ExecutionPolicy Bypass -File scripts\write_icons.ps1
 ```
+
+成功后会生成：
+
+- `icons\icon16.png`
+- `icons\icon32.png`
+- `icons\icon48.png`
+- `icons\icon128.png`
+
+然后：
 
 1. 打开 `chrome://extensions/`
 2. 打开 **开发者模式**
-3. **加载已解压的扩展程序** → 选择本仓库目录
+3. **加载已解压的扩展程序** → 选本仓库目录  
+   （若已加载则点 **重新加载**）
 
-> 若暂时不生成图标，扩展也能加载（使用 Chrome 默认图标）。
+> 必须先运行 `write_icons.py` 生成 PNG，否则会因缺少图标无法加载清单。
 
 ## 使用
 
