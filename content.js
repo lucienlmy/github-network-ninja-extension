@@ -73,54 +73,34 @@
 
   // ---------- fullscreen ----------
   let isFullscreen = false;
-  let canvasOrigSize = null;
 
   function enterFullscreen() {
     const container =
       $(".js-network-graph-container") || $(".network-graph-container");
     if (!container) return;
-    const canvas = container.querySelector("canvas");
-    if (canvas) {
-      canvasOrigSize = {
-        width: canvas.getAttribute("width"),
-        height: canvas.getAttribute("height"),
-      };
-    }
+    // Do NOT touch canvas width/height attributes — that breaks hit-testing
+    // for hover tooltips. Only expand the container via CSS and let GitHub's
+    // network-graph component resize the canvas on the window "resize" event.
     document.body.classList.add("ghn-fullscreen");
-    requestAnimationFrame(function () {
-      if (canvas) {
-        canvas.setAttribute("width", window.innerWidth);
-        canvas.setAttribute("height", window.innerHeight);
-      }
-      window.dispatchEvent(new Event("resize"));
-    });
     isFullscreen = true;
     updateButtons();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
   }
 
   function exitFullscreen() {
-    const container =
-      $(".js-network-graph-container") || $(".network-graph-container");
-    const canvas = container && container.querySelector("canvas");
     document.body.classList.remove("ghn-fullscreen");
-    if (canvas) {
-      if (canvasOrigSize) {
-        if (canvasOrigSize.width)
-          canvas.setAttribute("width", canvasOrigSize.width);
-        else canvas.removeAttribute("width");
-        if (canvasOrigSize.height)
-          canvas.setAttribute("height", canvasOrigSize.height);
-        else canvas.removeAttribute("height");
-      } else {
-        canvas.removeAttribute("width");
-        canvas.removeAttribute("height");
-      }
-    }
-    setTimeout(function () {
-      window.dispatchEvent(new Event("resize"));
-    }, 50);
     isFullscreen = false;
     updateButtons();
+    // Let layout settle, then network-graph resizes canvas itself
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
   }
 
   function toggleFullscreen() {
