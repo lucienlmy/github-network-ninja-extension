@@ -162,27 +162,26 @@
     toolbar.appendChild(btnFullscreen);
     toolbar.appendChild(btnCommits);
 
-    const titleEl =
-      $$("h1, .h1, h2").find(function (el) {
-        return /network\s*graph/i.test(el.textContent || "");
-      }) || $("h1");
-
-    if (titleEl && titleEl.parentElement) {
-      titleEl.style.display = "inline-block";
-      titleEl.insertAdjacentElement("afterend", toolbar);
-    } else {
-      const container =
-        $(".js-network-graph-container") || $(".network-graph-container");
-      if (container) {
-        container.style.position = "relative";
-        toolbar.style.position = "absolute";
-        toolbar.style.top = "8px";
-        toolbar.style.right = "8px";
-        toolbar.style.zIndex = "10";
-        container.appendChild(toolbar);
-      } else {
-        document.body.appendChild(toolbar);
+    // Prefer next to title; otherwise fixed top-right near GitHub UI
+    let placed = false;
+    const candidates = $$("h1, h2, .h1, .h2");
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      if (/network/i.test(el.textContent || "")) {
+        el.style.display = "inline-block";
+        el.insertAdjacentElement("afterend", toolbar);
+        placed = true;
+        break;
       }
+    }
+
+    if (!placed) {
+      // Always-visible fallback: fixed under the global header
+      toolbar.style.position = "fixed";
+      toolbar.style.top = "72px";
+      toolbar.style.right = "16px";
+      toolbar.style.zIndex = "1000";
+      document.body.appendChild(toolbar);
     }
 
     const exitBar = document.createElement("div");
@@ -328,11 +327,9 @@
   }
 
   function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, "&")
-      .replace(/</g, "<")
-      .replace(/>/g, ">")
-      .replace(/"/g, """);
+    var d = document.createElement("div");
+    d.textContent = String(s);
+    return d.innerHTML;
   }
 
   function waitForNethash(timeoutMs) {
@@ -477,13 +474,18 @@
 
   function init() {
     if (!getRepo()) return;
-    waitFor(".js-network-graph-container, .network-graph-container, canvas")
+    // Show buttons ASAP; graph may load later
+    createToolbar();
+    waitFor(".js-network-graph-container, .network-graph-container, canvas, h1, h2", 20000)
       .then(function () {
-        setTimeout(createToolbar, 300);
+        // Re-place near title if we used fixed fallback
+        var tb = $(".ghn-toolbar");
+        if (tb && tb.style.position === "fixed") {
+          tb.remove();
+          createToolbar();
+        }
       })
-      .catch(function () {
-        createToolbar();
-      });
+      .catch(function () {});
   }
 
   if (document.readyState === "loading") {
