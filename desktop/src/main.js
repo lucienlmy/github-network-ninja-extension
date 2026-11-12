@@ -81,15 +81,10 @@ function resize() {
   scheduleDraw();
 }
 
+/** 通过 Tauri Rust 命令请求，避免 WebView CORS */
 async function fetchJson(url) {
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
-  return res.json();
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("fetch_github_json", { url });
 }
 
 async function loadNetwork(repo) {
